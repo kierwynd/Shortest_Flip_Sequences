@@ -456,7 +456,7 @@ def gather_flips(P,BN,num_parts,graph):
 #        column string to weight by ('UNWEIGHTED' for unweighted case), bool to indicate whether
 #        shapefile is for a grid graph
 # Output: bool to indicate whether or not there exists a max-weight perfect matching such that
-#         fixed cores are nonempty and connected
+#         matched pairs are adjacent and there's at least one nonempty and connected fixed core
 def check_matchings(file_A,file_B,shp,col,grid_bool):
     
     # Make graph
@@ -510,22 +510,47 @@ def check_matchings(file_A,file_B,shp,col,grid_bool):
 
     optimal = []
 
+#     for p in permutations(parts):
+
+#         value = 0
+#         matching = {}
+#         empty_core = False
+#         for i in parts:
+#             value += H_parts_aux.edges[('A'+str(i),'B'+str(p[i-1]))]['weight']
+#             matching['A'+str(i)] = 'B'+str(p[i-1])
+#             if H_parts_aux.edges[('A'+str(i),'B'+str(p[i-1]))]['empty']:
+#                 empty_core = True
+#                 break
+
+#         if (not empty_core) and ((total_sum - value) == TD):
+#             optimal.append(matching)
+
+#     print('Optimal matchings with nonempty fixed cores:\n',optimal)
+
+
     for p in permutations(parts):
 
         value = 0
         matching = {}
-        empty_core = False
+        nonadjacent = False
+        
         for i in parts:
             value += H_parts_aux.edges[('A'+str(i),'B'+str(p[i-1]))]['weight']
             matching['A'+str(i)] = 'B'+str(p[i-1])
-            if H_parts_aux.edges[('A'+str(i),'B'+str(p[i-1]))]['empty']:
-                empty_core = True
+            
+            verts = list(set([v for v in graph.nodes if (START[v] == i) or (END[v] == p[i-1])]))
+            subg = graph.subgraph(verts)
+            
+            if not nx.is_connected(subg):
+                nonadjacent = True
                 break
-
-        if (not empty_core) and ((total_sum - value) == TD):
+            
+        if (not nonadjacent) and ((total_sum - value) == TD):
             optimal.append(matching)
 
-    print('Optimal matchings with nonempty fixed cores:\n',optimal)
+    print('Optimal matchings with adjacent matched parts:\n',optimal)
+    
+    
     
     if len(optimal) == 0:
         return False
@@ -535,7 +560,7 @@ def check_matchings(file_A,file_B,shp,col,grid_bool):
         
         for matching in optimal:
             
-            connected = True
+            connected = False
             
             for val in matching:
                 
@@ -546,14 +571,14 @@ def check_matchings(file_A,file_B,shp,col,grid_bool):
                 
                 subg = graph.subgraph(partA.intersection(partB))
                 
-                if not nx.is_connected(subg):
-                    connected = False
+                if nx.is_connected(subg):
+                    connected = True
                     break
                     
             if connected:
                 connected_cores.append(matching)
                 
-        print('Optimal matchings with nonempty and connected fixed cores:\n',connected_cores)   
+        print('Optimal matchings with adjacent matched pairs and at least one nonempty and connected fixed core:\n',connected_cores)   
             
         if len(connected_cores) == 0:
             return False
